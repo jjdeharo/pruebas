@@ -16,10 +16,21 @@
     <div id="loader"><p>Cargando...</p></div>
     <iframe id="content-frame" style="display:none;"></iframe>
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxYKEZdsESIeLPnL8aYqk7z2VsEa41j759_bm6gCKXGk0XL1-5GbKlJEDWuZ_Xc30k5/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwmvZK3-HW7fAFzAhyOEkVRFXbhMWxFN2orkC5nLoc0B-8uidYOChqsBuGain7G4UwO/exec';
     const iframe = document.getElementById('content-frame');
     const loader = document.getElementById('loader');
     const resourceCache = new Map();
+
+    // Función para convertir Base64 a Blob
+    function base64ToBlob(base64, mimeType) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], {type: mimeType});
+    }
 
     async function fetchFromDrive(folderId, path) {
         const cacheKey = `${folderId}/${path}`;
@@ -29,33 +40,25 @@
 
         const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}&cacheBust=${Date.now()}`;
         const response = await fetch(url, { cache: 'no-store' });
-        
-        const contentType = response.headers.get('Content-Type') || '';
-        
-        if (contentType.includes('application/json')) {
-             const data = await response.json();
-             let errorMessage = data.error?.message || `Respuesta inesperada de la API: ${JSON.stringify(data)}`;
-             throw new Error(`Error en la API para el archivo '${path}': ${errorMessage}`);
-        }
 
         if (!response.ok) {
-            throw new Error(`Error de red (${response.status}) al cargar el recurso: ${path}`);
-        }
-
-        if (contentType.includes('text/plain')) {
-             const base64 = await response.text();
-             const binary = atob(base64);
-             const len = binary.length;
-             const bytes = new Uint8Array(len);
-             for(let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-             const blob = new Blob([bytes]);
-             resourceCache.set(cacheKey, blob);
-             return blob;
+            throw new Error(`Error de red (${response.status}) al contactar la API.`);
         }
         
-        const textContent = await response.text();
-        resourceCache.set(cacheKey, textContent);
-        return textContent;
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Error desconocido en la API.');
+        }
+
+        if (data.encoding === 'base64') {
+            const blob = base64ToBlob(data.content, data.mimeType);
+            resourceCache.set(cacheKey, blob);
+            return blob;
+        } else {
+            resourceCache.set(cacheKey, data.content);
+            return data.content;
+        }
     }
 
     async function loadContent() {
@@ -63,19 +66,26 @@
         iframe.style.display = 'none';
 
         const hash = window.location.hash.substring(1);
-        const [folderId, ...pathParts] = hash.split('/');
+        if (!hash) {
+            loader.innerHTML = '<h2>Bienvenido</h2><p>Añade el ID de una carpeta de Drive a la URL para empezar. Ejemplo: #ID_DE_CARPETA</p>';
+            return;
+        }
+        
+        const pathParts = hash.split('/');
+        const folderId = pathParts.shift();
         let path = pathParts.join('/') || 'index.html';
-        if (path.endsWith('/')) path += 'index.html';
+        if(path.endsWith('/')) path += 'index.html';
+
 
         if (!folderId) {
-            loader.innerHTML = '<h2>Error de configuración</h2><p>Falta el ID de la carpeta en la URL. Ejemplo: #ID_DE_CARPETA/index.html</p>';
+            loader.innerHTML = '<h2>Error de configuración</h2><p>URL inválida. El formato es #ID_DE_CARPETA/ruta/al/archivo.html</p>';
             return;
         }
 
         try {
             const htmlContent = await fetchFromDrive(folderId, path);
             if(htmlContent instanceof Blob) {
-                throw new Error("La ruta principal no es un archivo HTML válido.")
+                throw new Error("La ruta principal (" + path + ") no es un archivo HTML válido.")
             }
             const doc = new DOMParser().parseFromString(htmlContent, 'text/html');
             
@@ -84,18 +94,22 @@
             const promises = [];
             doc.querySelectorAll('link[href], script[src], img[src], a[href]').forEach(el => {
                 const isLink = el.tagName === 'A';
-                const attr = el.getAttribute('href') || el.getAttribute('src');
+                const attr = el.hasAttribute('href') ? 'href' : 'src';
+                const originalUrl = el.getAttribute(attr);
 
-                if (attr && !attr.startsWith('http') && !attr.startsWith('#') && !attr.startsWith('data:') && !attr.startsWith('blob:')) {
-                    const absolutePath = new URL(attr, `http://dummy.com/${base}`).pathname.substring(1);
+                if (originalUrl && !originalUrl.startsWith('http') && !originalUrl.startsWith('#') && !originalUrl.startsWith('data:') && !originalUrl.startsWith('blob:')) {
                     
-                    if (isLink && (attr.endsWith('.html') || !attr.includes('.'))) {
+                    const absolutePath = new URL(originalUrl, `http://dummy.com/${base}`).pathname.substring(1);
+                    
+                    if (isLink && (originalUrl.endsWith('.html') || !originalUrl.includes('.'))) {
                         el.href = `#${folderId}/${absolutePath}`;
                     } else if (!isLink) {
                         const promise = fetchFromDrive(folderId, absolutePath)
                             .then(blob => {
                                 const blobUrl = URL.createObjectURL(blob);
-                                el.setAttribute(el.hasAttribute('href') ? 'href' : 'src', blobUrl);
+                                el.setAttribute(attr, blobUrl);
+                            }).catch(err => {
+                                console.error(`No se pudo cargar el recurso: ${absolutePath}`, err);
                             });
                         promises.push(promise);
                     }
