@@ -1,0 +1,6 @@
+
+{
+  "name": "Vanilla JS Calculator",
+  "description": "A sleek, modern calculator application built with HTML, Tailwind CSS, and plain JavaScript. Features standard arithmetic operations, percentage, sign toggle, and a responsive, user-friendly interface. Designed for excellent visual aesthetics and functionality.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanilla JS Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Minor style adjustments if needed, though Tailwind should cover most */
+    .calculator-button {
+      transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    .calculator-button:active {
+      transform: translateY(1px);
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-gray-200 flex items-center justify-center min-h-screen antialiased">
+
+  <div id="calculator" class="bg-black w-full max-w-xs sm:max-w-sm mx-auto rounded-xl shadow-2xl overflow-hidden my-8">
+    <div id="display-container" class="bg-gray-900 text-white text-right p-6 h-28 flex items-end justify-end rounded-t-lg">
+      <span id="display" class="text-5xl font-mono block truncate" title="0">0</span>
+    </div>
+    <div class="grid grid-cols-4 gap-px bg-gray-700">
+      <button data-action="clear" class="calculator-button bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-black focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">AC</button>
+      <button data-action="toggle-sign" class="calculator-button bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-black focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">+/-</button>
+      <button data-action="percentage" class="calculator-button bg-gray-400 hover:bg-gray-500 active:bg-gray-600 text-black focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">%</button>
+      <button data-action="operator" data-value="/" class="calculator-button bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white focus:ring-orange-300 text-2xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">÷</button>
+
+      <button data-action="digit" data-value="7" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">7</button>
+      <button data-action="digit" data-value="8" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">8</button>
+      <button data-action="digit" data-value="9" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">9</button>
+      <button data-action="operator" data-value="*" class="calculator-button bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white focus:ring-orange-300 text-2xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">×</button>
+
+      <button data-action="digit" data-value="4" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">4</button>
+      <button data-action="digit" data-value="5" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">5</button>
+      <button data-action="digit" data-value="6" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">6</button>
+      <button data-action="operator" data-value="-" class="calculator-button bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white focus:ring-orange-300 text-2xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">-</button>
+
+      <button data-action="digit" data-value="1" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">1</button>
+      <button data-action="digit" data-value="2" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">2</button>
+      <button data-action="digit" data-value="3" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">3</button>
+      <button data-action="operator" data-value="+" class="calculator-button bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white focus:ring-orange-300 text-2xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">+</button>
+
+      <button data-action="digit" data-value="0" class="calculator-button col-span-2 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">0</button>
+      <button data-action="decimal" class="calculator-button bg-gray-600 hover:bg-gray-500 active:bg-gray-400 text-white focus:ring-gray-300 text-xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">.</button>
+      <button data-action="equals" class="calculator-button bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white focus:ring-orange-300 text-2xl font-medium py-5 focus:outline-none focus:ring-2 focus:ring-opacity-75">=</button>
+    </div>
+  </div>
+
+  <script type="module" src="/index.js"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
