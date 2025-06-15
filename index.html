@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visor de Aplicaciones Proxy</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
-        #loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; font-family: sans-serif; color: #555; }
-        #loader p { margin-top: 10px; }
+        #loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; font-family: sans-serif; color: #555; text-align: center; padding: 20px; }
+        #loader p { margin-top: 10px; word-break: break-word; }
+        #loader h2 { margin: 0; }
     </style>
 </head>
 <body>
     <div id="loader"><p>Cargando...</p></div>
     <iframe id="content-frame" style="display:none;"></iframe>
-    
 <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxgHrkyhcO01HnuX0uil9M7f5MDE5LXr56G4P1_4PcT82k9zpxSih8IHuedB7mcT9X4/exec';
     const iframe = document.getElementById('content-frame');
@@ -22,35 +22,38 @@
     const resourceCache = new Map();
 
     async function fetchFromDrive(folderId, path) {
-        if (resourceCache.has(path)) {
-            return resourceCache.get(path);
+        const cacheKey = `${folderId}/${path}`;
+        if (resourceCache.has(cacheKey)) {
+            return resourceCache.get(cacheKey);
         }
 
         const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Error (${response.status}) al cargar: ${path}`);
+        if (!response.ok) {
+            throw new Error(`Error (${response.status}) al cargar el recurso: ${path}`);
+        }
         
-        const contentType = response.headers.get('Content-Type');
+        const contentType = response.headers.get('Content-Type') || '';
         
-        if (contentType && contentType.includes('application/json')) {
+        if (contentType.includes('application/json')) {
              const data = await response.json();
-             if(data.error) throw new Error(`API Error: ${data.error.message} for path: ${path}`);
+             if(data.error) throw new Error(`Error en la API: ${data.error.message} (para el archivo: ${path})`);
              return data;
         }
 
-        if (contentType && contentType.includes('text/plain')) {
+        if (contentType.includes('text/plain')) {
              const base64 = await response.text();
              const binary = atob(base64);
              const len = binary.length;
              const bytes = new Uint8Array(len);
              for(let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
              const blob = new Blob([bytes]);
-             resourceCache.set(path, blob);
+             resourceCache.set(cacheKey, blob);
              return blob;
         }
         
         const textContent = await response.text();
-        resourceCache.set(path, textContent);
+        resourceCache.set(cacheKey, textContent);
         return textContent;
     }
 
@@ -63,9 +66,8 @@
         let path = pathParts.join('/') || 'index.html';
         if (path.endsWith('/')) path += 'index.html';
 
-
         if (!folderId) {
-            loader.innerHTML = '<p>Error: Falta el ID de la carpeta en la URL. Ejemplo: #folderId/index.html</p>';
+            loader.innerHTML = '<h2>Error de configuración</h2><p>Falta el ID de la carpeta en la URL. Ejemplo: #ID_DE_CARPETA/index.html</p>';
             return;
         }
 
@@ -80,8 +82,8 @@
                 const isLink = el.tagName === 'A';
                 const attr = el.getAttribute('href') || el.getAttribute('src');
 
-                if (attr && !attr.startsWith('http') && !attr.startsWith('#') && !attr.startsWith('data:')) {
-                    const absolutePath = new URL(attr, `http://dummy/${base}`).pathname.substring(1);
+                if (attr && !attr.startsWith('http') && !attr.startsWith('#') && !attr.startsWith('data:') && !attr.startsWith('blob:')) {
+                    const absolutePath = new URL(attr, `http://dummy.com/${base}`).pathname.substring(1);
                     
                     if (isLink && (attr.endsWith('.html') || !attr.includes('.'))) {
                         el.href = `#${folderId}/${absolutePath}`;
@@ -90,8 +92,7 @@
                             .then(blob => {
                                 const blobUrl = URL.createObjectURL(blob);
                                 el.setAttribute(el.hasAttribute('href') ? 'href' : 'src', blobUrl);
-                            })
-                            .catch(err => console.error(`Failed to load resource: ${absolutePath}`, err));
+                            });
                         promises.push(promise);
                     }
                 }
