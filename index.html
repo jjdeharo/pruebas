@@ -51,23 +51,24 @@
             <!-- Pantalla de bienvenida / Instrucciones -->
             <div id="welcome-screen" class="absolute inset-0 bg-gray-100 z-20 flex items-center justify-center p-8">
                 <div class="text-center bg-white p-10 rounded-xl shadow-lg max-w-2xl">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-4">Visor de Proyectos de Google Drive</h1>
-                    <p class="text-gray-600 mb-6">Este visor te permite cargar y visualizar sitios web alojados en una carpeta de Google Drive.</p>
-                    <div id="error-display" class="hidden my-4 p-4 bg-red-100 text-red-700 rounded-lg text-left"></div>
-                    <div class="text-left space-y-4">
-                       <p><strong>Cómo usarlo:</strong></p>
-                       <ol class="list-decimal list-inside space-y-2 text-gray-500">
-                           <li>Asegúrate de haber configurado y desplegado el Script de Google Apps. Revisa que el acceso esté configurado para **"Cualquier usuario"**.</li>
-                           <li>Copia la URL de tu Web App desplegada y pégala en el campo de abajo.</li>
-                           <li>Obtén el ID de tu carpeta de Google Drive (está en la URL de la carpeta).</li>
-                           <li>Añade el ID a la URL de esta página, después de un '#'. Ejemplo: <code class="bg-gray-200 p-1 rounded text-sm">.../index.html#ID_DE_LA_CARPETA</code></li>
-                           <li>Refresca la página para cargar el proyecto.</li>
-                       </ol>
-                    </div>
-                     <div class="mt-8">
-                        <label for="script-url-input" class="block text-sm font-medium text-gray-700 mb-2">URL de tu Web App de Google:</label>
-                        <input type="url" id="script-url-input" placeholder="Pega la URL de tu script aquí..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <button id="save-script-url" class="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Guardar URL y Recargar</button>
+                    <div id="welcome-content">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-4">Visor de Proyectos de Google Drive</h1>
+                        <p class="text-gray-600 mb-6">Este visor te permite cargar y visualizar sitios web alojados en una carpeta de Google Drive.</p>
+                        <div id="error-display" class="hidden my-4 p-4 bg-red-100 text-red-700 rounded-lg text-left"></div>
+                        <div class="text-left space-y-4">
+                           <p><strong>Cómo usarlo:</strong></p>
+                           <ol class="list-decimal list-inside space-y-2 text-gray-500">
+                               <li>Despliega el Script de Google Apps. Asegúrate de que el acceso esté configurado para **"Cualquier usuario"**.</li>
+                               <li>Pega la URL de tu Web App desplegada en el campo de abajo y guárdala.</li>
+                               <li>Añade el ID de tu carpeta de Google Drive a la URL de esta página (después de un '#').</li>
+                               <li>Refresca la página para cargar el proyecto.</li>
+                           </ol>
+                        </div>
+                         <div class="mt-8">
+                            <label for="script-url-input" class="block text-sm font-medium text-gray-700 mb-2">URL de tu Web App de Google:</label>
+                            <input type="url" id="script-url-input" placeholder="Pega la URL de tu script aquí..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <button id="save-script-url" class="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Guardar URL</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -92,6 +93,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- Elementos del DOM ---
         const welcomeScreen = document.getElementById('welcome-screen');
+        const welcomeContent = document.getElementById('welcome-content');
         const loader = document.getElementById('loader');
         const loadingStatus = document.getElementById('loading-status');
         const contentFrame = document.getElementById('content-frame');
@@ -107,7 +109,7 @@
 
         // --- Sistema de Notificaciones ---
         let notificationTimeout;
-        const showNotification = (message, type = 'success', duration = 4000) => {
+        const showNotification = (message, type = 'success', duration = 5000) => {
             clearTimeout(notificationTimeout);
             const content = document.getElementById('notification-content');
             content.className = 'max-w-xl mx-auto rounded-lg shadow-lg p-4 flex items-center'; // Reset classes
@@ -130,7 +132,7 @@
 
         // --- Pie de página (configurable) ---
         const footerInfo = {
-            enabled: false, // Cambiar a true para mostrar el pie
+            enabled: false,
             items: [
                 { text: 'Laboratorio de aplicaciones educativas', href: 'https://labia.tiddlyhost.com' },
                 { text: 'Aplicación hecha por Juan José de Haro', href: 'https://bilateria.org' },
@@ -148,6 +150,19 @@
                 footerContent.style.display = 'none';
             }
         }
+
+        // --- Función para mostrar mensaje de siguiente paso ---
+        const showNextStepMessage = () => {
+            const existingMessage = document.getElementById('next-step-info');
+            if(existingMessage) existingMessage.remove();
+
+            welcomeContent.insertAdjacentHTML('afterbegin', `
+                <div id="next-step-info" class="mb-6 p-4 bg-green-100 text-green-800 rounded-lg text-left">
+                    <p class="font-bold">¡Paso 1 completado!</p>
+                    <p>La URL de tu API está guardada. El último paso es añadir el ID de una carpeta de Drive a la URL de esta página (tras un #) y refrescar.</p>
+                </div>
+            `);
+        }
         
         // --- Lógica principal ---
         const savedUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
@@ -159,8 +174,8 @@
             const url = scriptUrlInput.value.trim();
             if (url && url.startsWith('https://script.google.com/macros/s/')) {
                 localStorage.setItem(SCRIPT_URL_STORAGE_KEY, url);
-                showNotification('URL guardada. La página se recargará ahora.', 'success');
-                setTimeout(() => window.location.reload(), 2000);
+                showNotification('URL guardada. Ahora, añade el ID de la carpeta a la URL y refresca.', 'success', 10000);
+                showNextStepMessage();
             } else {
                 showNotification('Por favor, introduce una URL de Google Apps Script válida.', 'error');
             }
@@ -170,6 +185,12 @@
             renderFooter();
             const scriptUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
             const folderId = window.location.hash.substring(1);
+
+            if (scriptUrl && !folderId) {
+                welcomeScreen.style.display = 'flex';
+                showNextStepMessage();
+                return;
+            }
 
             if (!scriptUrl || !folderId) {
                 welcomeScreen.style.display = 'flex';
@@ -195,8 +216,7 @@
                 }
                 return data;
             } catch (error) {
-                // Este catch es para errores de red puros (CORS, DNS, etc.)
-                throw new Error(`Error de red al contactar la API. Revisa la URL del script y la configuración de despliegue (debe ser público para "Cualquier usuario"). Detalles: ${error.message}`);
+                throw new Error(`Error de red al contactar la API. Revisa la URL del script y su configuración de despliegue. Detalles: ${error.message}`);
             }
         }
         
@@ -208,7 +228,6 @@
                 const doc = parser.parseFromString(indexFile.content, 'text/html');
 
                 const resourcePromises = [];
-                
                 const selectors = 'link[rel="stylesheet"], script[src], img[src]';
                 doc.querySelectorAll(selectors).forEach(el => {
                     const attr = el.hasAttribute('href') ? 'href' : 'src';
@@ -220,7 +239,7 @@
                     }
                 });
 
-                loadingStatus.textContent = 'Descargando recursos adicionales...';
+                loadingStatus.textContent = `Descargando recursos adicionales...`;
                 const resources = await Promise.all(resourcePromises);
 
                 resources.forEach(res => {
@@ -249,19 +268,3 @@
     </script>
 </body>
 </html>
-```
-
-### Qué hacer ahora
-
-Por favor, **revisa estos dos puntos** en tu configuración de Google:
-
-1.  **Verifica el despliegue:**
-    * Ve a tu proyecto en [script.google.com](https://script.google.com).
-    * Haz clic en **"Implementar"** > **"Gestionar implementaciones"**.
-    * Busca tu implementación activa. En la sección "Acceso a la aplicación web", debe poner **"Cualquier usuario"**.
-    * Si no lo pone, haz clic en el lápiz para editar, cámbialo, y crea una **"Nueva versión"**. Vuelve a desplegar.
-
-2.  **Verifica la URL:**
-    * En esa misma pantalla de "Gestionar implementaciones", copia la **"URL de la aplicación web"**. Asegúrate de que es la que has pegado en el visor.
-
-Una vez hayas verificado esto, vuelve a probar. Con el visor actualizado, si sigue habiendo un error, el mensaje que te mostrará en la pantalla de bienvenida será mucho más específico y nos dará mejores pist
