@@ -14,7 +14,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        /* Asegura que el iframe ocupe todo el espacio disponible */
         html, body {
             height: 100%;
             margin: 0;
@@ -32,15 +31,19 @@
             border: none;
             width: 100%;
         }
-        #footer-content {
-            /* Estilos del pie de página */
-        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
+
+    <div id="notification-area" class="fixed top-0 left-0 right-0 p-4 z-50 transform -translate-y-full transition-transform duration-300">
+        <div id="notification-content" class="max-w-xl mx-auto bg-white rounded-lg shadow-lg p-4 flex items-center">
+            <span id="notification-text" class="flex-grow"></span>
+            <button id="notification-close" class="ml-4 text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
 
     <div id="app-container">
         <!-- Contenedor principal de la aplicación -->
@@ -50,13 +53,14 @@
                 <div class="text-center bg-white p-10 rounded-xl shadow-lg max-w-2xl">
                     <h1 class="text-3xl font-bold text-gray-800 mb-4">Visor de Proyectos de Google Drive</h1>
                     <p class="text-gray-600 mb-6">Este visor te permite cargar y visualizar sitios web alojados en una carpeta de Google Drive.</p>
+                    <div id="error-display" class="hidden my-4 p-4 bg-red-100 text-red-700 rounded-lg text-left"></div>
                     <div class="text-left space-y-4">
                        <p><strong>Cómo usarlo:</strong></p>
                        <ol class="list-decimal list-inside space-y-2 text-gray-500">
-                           <li>Asegúrate de haber configurado y desplegado el <a href="#drive_api_script" class="text-blue-600 hover:underline">Script de Google Apps</a>.</li>
+                           <li>Asegúrate de haber configurado y desplegado el Script de Google Apps. Revisa que el acceso esté configurado para **"Cualquier usuario"**.</li>
                            <li>Copia la URL de tu Web App desplegada y pégala en el campo de abajo.</li>
                            <li>Obtén el ID de tu carpeta de Google Drive (está en la URL de la carpeta).</li>
-                           <li>Añade el ID de la carpeta a la URL de esta página, después de un '#'. Ejemplo: <code class="bg-gray-200 p-1 rounded text-sm">.../index.html#ID_DE_LA_CARPETA</code></li>
+                           <li>Añade el ID a la URL de esta página, después de un '#'. Ejemplo: <code class="bg-gray-200 p-1 rounded text-sm">.../index.html#ID_DE_LA_CARPETA</code></li>
                            <li>Refresca la página para cargar el proyecto.</li>
                        </ol>
                     </div>
@@ -86,11 +90,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- CONFIGURACIÓN ---
-        // La URL del script se guardará en localStorage para no tener que pegarla siempre.
-        const SCRIPT_URL_STORAGE_KEY = 'googleWebAppUrl';
-        
-        // Elementos del DOM
+        // --- Elementos del DOM ---
         const welcomeScreen = document.getElementById('welcome-screen');
         const loader = document.getElementById('loader');
         const loadingStatus = document.getElementById('loading-status');
@@ -98,6 +98,35 @@
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveButton = document.getElementById('save-script-url');
         const footerContent = document.getElementById('footer-content');
+        const notificationArea = document.getElementById('notification-area');
+        const notificationText = document.getElementById('notification-text');
+        const notificationClose = document.getElementById('notification-close');
+        const errorDisplay = document.getElementById('error-display');
+
+        const SCRIPT_URL_STORAGE_KEY = 'googleWebAppUrl';
+
+        // --- Sistema de Notificaciones ---
+        let notificationTimeout;
+        const showNotification = (message, type = 'success', duration = 4000) => {
+            clearTimeout(notificationTimeout);
+            const content = document.getElementById('notification-content');
+            content.className = 'max-w-xl mx-auto rounded-lg shadow-lg p-4 flex items-center'; // Reset classes
+            if (type === 'error') {
+                content.classList.add('bg-red-100', 'text-red-800');
+            } else {
+                content.classList.add('bg-green-100', 'text-green-800');
+            }
+            notificationText.textContent = message;
+            notificationArea.style.transform = 'translateY(0)';
+
+            notificationTimeout = setTimeout(() => {
+                notificationArea.style.transform = 'translateY(-100%)';
+            }, duration);
+        };
+        notificationClose.addEventListener('click', () => {
+            clearTimeout(notificationTimeout);
+            notificationArea.style.transform = 'translateY(-100%)';
+        });
 
         // --- Pie de página (configurable) ---
         const footerInfo = {
@@ -109,7 +138,6 @@
             ]
         };
         
-        // Función para renderizar el pie de página
         function renderFooter() {
             if (footerInfo.enabled) {
                 const links = footerInfo.items.map(item => 
@@ -122,26 +150,22 @@
         }
         
         // --- Lógica principal ---
-        
-        // Cargar URL guardada al iniciar
         const savedUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
         if (savedUrl) {
             scriptUrlInput.value = savedUrl;
         }
 
-        // Guardar la URL del script
         saveButton.addEventListener('click', () => {
             const url = scriptUrlInput.value.trim();
-            if (url) {
+            if (url && url.startsWith('https://script.google.com/macros/s/')) {
                 localStorage.setItem(SCRIPT_URL_STORAGE_KEY, url);
-                alert('URL guardada. La página se recargará para aplicar los cambios.');
-                window.location.reload();
+                showNotification('URL guardada. La página se recargará ahora.', 'success');
+                setTimeout(() => window.location.reload(), 2000);
             } else {
-                alert('Por favor, introduce una URL válida.');
+                showNotification('Por favor, introduce una URL de Google Apps Script válida.', 'error');
             }
         });
 
-        // Inicia el proceso de carga de la web
         async function init() {
             renderFooter();
             const scriptUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
@@ -157,86 +181,54 @@
             await loadWebsite(scriptUrl, folderId);
         }
 
-        /**
-         * Llama a la API de Google Apps Script para obtener un archivo.
-         * @param {string} scriptUrl - La URL del script desplegado.
-         * @param {string} folderId - El ID de la carpeta de Drive.
-         * @param {string} filename - El nombre del archivo a solicitar.
-         * @returns {Promise<Object>} - El objeto con los datos del archivo.
-         */
         async function fetchFile(scriptUrl, folderId, filename) {
             const url = `${scriptUrl}?folderId=${folderId}&filename=${encodeURIComponent(filename)}`;
             loadingStatus.textContent = `Pidiendo ${filename}...`;
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Error de red al contactar con la API: ${response.statusText}`);
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Respuesta de red no fue OK. Estado: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(`Error de la API: ${data.error} (${data.details || 'Sin detalles'})`);
+                }
+                return data;
+            } catch (error) {
+                // Este catch es para errores de red puros (CORS, DNS, etc.)
+                throw new Error(`Error de red al contactar la API. Revisa la URL del script y la configuración de despliegue (debe ser público para "Cualquier usuario"). Detalles: ${error.message}`);
             }
-            const data = await response.json();
-            if (data.error) {
-                throw new Error(`Error de la API: ${data.error} (${data.details || ''})`);
-            }
-            return data;
         }
         
-        /**
-         * Carga y reconstruye el sitio web completo desde Google Drive.
-         * @param {string} scriptUrl - La URL del script.
-         * @param {string} folderId - El ID de la carpeta.
-         */
         async function loadWebsite(scriptUrl, folderId) {
             try {
-                // 1. Obtener el index.html
                 const indexFile = await fetchFile(scriptUrl, folderId, 'index.html');
                 
-                // 2. Parsear el HTML para encontrar otros recursos (CSS, JS, imágenes)
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(indexFile.content, 'text/html');
 
-                // 3. Crear promesas para descargar todos los recursos
                 const resourcePromises = [];
                 
-                // Buscar CSS
-                doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-                    const href = link.getAttribute('href');
-                    if (href && !href.startsWith('http')) {
-                        resourcePromises.push(
-                            fetchFile(scriptUrl, folderId, href).then(file => ({ el: link, file, attr: 'href' }))
-                        );
-                    }
-                });
-
-                // Buscar JS
-                doc.querySelectorAll('script[src]').forEach(script => {
-                    const src = script.getAttribute('src');
-                    if (src && !src.startsWith('http')) {
+                const selectors = 'link[rel="stylesheet"], script[src], img[src]';
+                doc.querySelectorAll(selectors).forEach(el => {
+                    const attr = el.hasAttribute('href') ? 'href' : 'src';
+                    const path = el.getAttribute(attr);
+                    if (path && !path.startsWith('http') && !path.startsWith('data:')) {
                          resourcePromises.push(
-                            fetchFile(scriptUrl, folderId, src).then(file => ({ el: script, file, attr: 'src' }))
+                            fetchFile(scriptUrl, folderId, path).then(file => ({ el, file, attr }))
                         );
                     }
                 });
 
-                // Buscar Imágenes
-                doc.querySelectorAll('img[src]').forEach(img => {
-                    const src = img.getAttribute('src');
-                    if (src && !src.startsWith('http')) {
-                         resourcePromises.push(
-                            fetchFile(scriptUrl, folderId, src).then(file => ({ el: img, file, attr: 'src' }))
-                        );
-                    }
-                });
-
-                // 4. Esperar a que todos los recursos se descarguen
                 loadingStatus.textContent = 'Descargando recursos adicionales...';
                 const resources = await Promise.all(resourcePromises);
 
-                // 5. Reemplazar las rutas de los recursos por Data URLs
                 resources.forEach(res => {
                     const { el, file, attr } = res;
                     const dataUrl = `data:${file.mimeType};${file.encoding},${file.content}`;
                     el.setAttribute(attr, dataUrl);
                 });
 
-                // 6. Volcar el HTML reconstruido en el iframe
                 loadingStatus.textContent = 'Construyendo la página...';
                 const finalHtml = new XMLSerializer().serializeToString(doc);
                 contentFrame.srcdoc = finalHtml;
@@ -246,14 +238,30 @@
             } catch (error) {
                 loader.style.display = 'none';
                 welcomeScreen.style.display = 'flex';
-                welcomeScreen.querySelector('.text-center').innerHTML += `<div class="mt-4 p-4 bg-red-100 text-red-700 rounded-lg"><strong>Error:</strong> ${error.message}</div>`;
-                console.error("Error al cargar el proyecto:", error);
+                errorDisplay.innerHTML = `<strong>Error al cargar el proyecto:</strong><br>${error.message}`;
+                errorDisplay.style.display = 'block';
+                console.error("Error detallado:", error);
             }
         }
         
-        // Iniciar la aplicación
         init();
     });
     </script>
 </body>
 </html>
+```
+
+### Qué hacer ahora
+
+Por favor, **revisa estos dos puntos** en tu configuración de Google:
+
+1.  **Verifica el despliegue:**
+    * Ve a tu proyecto en [script.google.com](https://script.google.com).
+    * Haz clic en **"Implementar"** > **"Gestionar implementaciones"**.
+    * Busca tu implementación activa. En la sección "Acceso a la aplicación web", debe poner **"Cualquier usuario"**.
+    * Si no lo pone, haz clic en el lápiz para editar, cámbialo, y crea una **"Nueva versión"**. Vuelve a desplegar.
+
+2.  **Verifica la URL:**
+    * En esa misma pantalla de "Gestionar implementaciones", copia la **"URL de la aplicación web"**. Asegúrate de que es la que has pegado en el visor.
+
+Una vez hayas verificado esto, vuelve a probar. Con el visor actualizado, si sigue habiendo un error, el mensaje que te mostrará en la pantalla de bienvenida será mucho más específico y nos dará mejores pist
