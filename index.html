@@ -16,7 +16,7 @@
     <div id="loader"><p>Cargando...</p></div>
     <iframe id="content-frame" style="display:none;"></iframe>
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzyOb-sirwaDPYhl-5r7KXYCn5cRCs9t2CNw4fP5MWRDSitw5QjgdLHP1fMsCDr7pQDTg/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxYKEZdsESIeLPnL8aYqk7z2VsEa41j759_bm6gCKXGk0XL1-5GbKlJEDWuZ_Xc30k5/exec';
     const iframe = document.getElementById('content-frame');
     const loader = document.getElementById('loader');
     const resourceCache = new Map();
@@ -27,7 +27,6 @@
             return resourceCache.get(cacheKey);
         }
 
-        // CORRECCIÓN FINAL: Añadido "&cacheBust=${Date.now()}" para forzar que la petición no use la caché.
         const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}&cacheBust=${Date.now()}`;
         const response = await fetch(url, { cache: 'no-store' });
         
