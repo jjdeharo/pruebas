@@ -16,7 +16,7 @@
     <div id="loader"><p>Cargando...</p></div>
     <iframe id="content-frame" style="display:none;"></iframe>
 <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbyv2g-7o3rQctq2YQfsTWw_y7ZhdyJvva0VsdbpRdabkQne_vRtGQaIK5HGiWCUBiWA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzyOb-sirwaDPYhl-5r7KXYCn5cRCs9t2CNw4fP5MWRDSitw5QjgdLHP1fMsCDr7pQDTg/exec';
     const iframe = document.getElementById('content-frame');
     const loader = document.getElementById('loader');
     const resourceCache = new Map();
@@ -27,20 +27,15 @@
             return resourceCache.get(cacheKey);
         }
 
-        const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}`;
-        const response = await fetch(url);
+        // CORRECCIÓN FINAL: Añadido "&cacheBust=${Date.now()}" para forzar que la petición no use la caché.
+        const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}&cacheBust=${Date.now()}`;
+        const response = await fetch(url, { cache: 'no-store' });
         
         const contentType = response.headers.get('Content-Type') || '';
         
-        // CORREGIDO: Manejar JSON siempre como un posible error y mostrar su contenido.
         if (contentType.includes('application/json')) {
              const data = await response.json();
-             let errorMessage;
-             if (data && data.error && data.error.message) {
-                errorMessage = data.error.message;
-             } else {
-                errorMessage = `Respuesta inesperada de la API: ${JSON.stringify(data)}`;
-             }
+             let errorMessage = data.error?.message || `Respuesta inesperada de la API: ${JSON.stringify(data)}`;
              throw new Error(`Error en la API para el archivo '${path}': ${errorMessage}`);
         }
 
@@ -80,7 +75,6 @@
 
         try {
             const htmlContent = await fetchFromDrive(folderId, path);
-            // Si el contenido principal es un blob (p. ej. una imagen pedida directamente), no lo podemos procesar como HTML.
             if(htmlContent instanceof Blob) {
                 throw new Error("La ruta principal no es un archivo HTML válido.")
             }
@@ -102,7 +96,6 @@
                         const promise = fetchFromDrive(folderId, absolutePath)
                             .then(blob => {
                                 const blobUrl = URL.createObjectURL(blob);
-// Simbolo del dolar que estaba causando problemas quitado.
                                 el.setAttribute(el.hasAttribute('href') ? 'href' : 'src', blobUrl);
                             });
                         promises.push(promise);
