@@ -29,16 +29,19 @@
 
         const url = `${API_URL}?folderId=${folderId}&path=${encodeURIComponent(path)}`;
         const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Error (${response.status}) al cargar el recurso: ${path}`);
-        }
         
         const contentType = response.headers.get('Content-Type') || '';
         
+        // CORREGIDO: Manejar JSON siempre como un posible error
         if (contentType.includes('application/json')) {
              const data = await response.json();
-             if(data.error) throw new Error(`Error en la API: ${data.error.message} (para el archivo: ${path})`);
-             return data;
+             // Si la API devuelve JSON, es un error. Lánzalo para que sea capturado.
+             const errorMessage = data.error ? data.error.message : 'Respuesta inesperada de la API (JSON).';
+             throw new Error(`Error de la API para el archivo '${path}': ${errorMessage}`);
+        }
+
+        if (!response.ok) {
+            throw new Error(`Error (${response.status}) al cargar el recurso: ${path}`);
         }
 
         if (contentType.includes('text/plain')) {
