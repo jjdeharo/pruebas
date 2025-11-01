@@ -1,270 +1,196 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor de Proyectos de Drive</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Estilo para el loader */
-        .loader {
-            border-top-color: #3498db;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: 'Inter', sans-serif;
-        }
-        #app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        #content-frame {
-            flex-grow: 1;
-            border: none;
-            width: 100%;
-        }
-    </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BoardLive</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- PeerJS + QR + jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
-<body class="bg-gray-100">
-
-    <div id="notification-area" class="fixed top-0 left-0 right-0 p-4 z-50 transform -translate-y-full transition-transform duration-300">
-        <div id="notification-content" class="max-w-xl mx-auto bg-white rounded-lg shadow-lg p-4 flex items-center">
-            <span id="notification-text" class="flex-grow"></span>
-            <button id="notification-close" class="ml-4 text-gray-500 hover:text-gray-800">&times;</button>
+<body>
+  <div class="wrap">
+    <header data-collapsed="false">
+      <button id="menuToggle" class="btn menu-toggle" type="button" aria-expanded="true" aria-controls="toolbarControls">Ocultar menú</button>
+      <div class="toolbar-nav" role="tablist" aria-label="Secciones de la herramienta">
+        <button class="btn tab-btn" type="button" data-target="session" role="tab" aria-controls="section-session">Sesión</button>
+        <button class="btn tab-btn" type="button" data-target="draw" role="tab" aria-controls="section-draw">Dibujo</button>
+        <button class="btn tab-btn" type="button" data-target="options" role="tab" aria-controls="section-options">Archivo</button>
+      </div>
+      <div id="toolbarControls" class="toolbar-controls" data-active="session">
+        <div id="section-session" class="toolbar-section" data-section="session" role="tabpanel" aria-label="Controles de sesión">
+          <strong id="roleLabel">Modo:</strong>
+          <button id="hostBtn" class="btn host-only" data-state="idle">🖥️ Compartir mi pizarra</button>
+          <label id="codeWrapper">Código <input id="code" type="text" placeholder="ABC123" style="width:7rem;text-transform:uppercase"/></label>
+          <button id="joinBtn" class="btn" data-state="idle">👥 Unirme a una pizarra</button>
+          <button id="qrBtn" class="btn host-only" title="Invitar a tu pizarra">Invitar</button>
         </div>
-    </div>
-
-    <div id="app-container">
-        <!-- Contenedor principal de la aplicación -->
-        <main id="main-content" class="flex-grow relative">
-            <!-- Pantalla de bienvenida / Instrucciones -->
-            <div id="welcome-screen" class="absolute inset-0 bg-gray-100 z-20 flex items-center justify-center p-8">
-                <div class="text-center bg-white p-10 rounded-xl shadow-lg max-w-2xl">
-                    <div id="welcome-content">
-                        <h1 class="text-3xl font-bold text-gray-800 mb-4">Visor de Proyectos de Google Drive</h1>
-                        <p class="text-gray-600 mb-6">Este visor te permite cargar y visualizar sitios web alojados en una carpeta de Google Drive.</p>
-                        <div id="error-display" class="hidden my-4 p-4 bg-red-100 text-red-700 rounded-lg text-left"></div>
-                        <div class="text-left space-y-4">
-                           <p><strong>Cómo usarlo:</strong></p>
-                           <ol class="list-decimal list-inside space-y-2 text-gray-500">
-                               <li>Despliega el Script de Google Apps. Asegúrate de que el acceso esté configurado para **"Cualquier usuario"**.</li>
-                               <li>Pega la URL de tu Web App desplegada en el campo de abajo y guárdala.</li>
-                               <li>Añade el ID de tu carpeta de Google Drive a la URL de esta página (después de un '#').</li>
-                               <li>Refresca la página para cargar el proyecto.</li>
-                           </ol>
-                        </div>
-                         <div class="mt-8">
-                            <label for="script-url-input" class="block text-sm font-medium text-gray-700 mb-2">URL de tu Web App de Google:</label>
-                            <input type="url" id="script-url-input" placeholder="Pega la URL de tu script aquí..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                            <button id="save-script-url" class="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Guardar URL</button>
-                        </div>
-                    </div>
-                </div>
+        <div id="section-draw" class="toolbar-section" data-section="draw" role="tabpanel" aria-label="Herramientas de dibujo">
+          <div class="draw-toolbar edit-only" role="group" aria-label="Controles principales de dibujo">
+            <div class="draw-toolbar-actions">
+              <button id="toolSettingsToggle" class="btn tool-trigger" type="button" aria-expanded="false" aria-controls="toolSettingsPanel" title="Seleccionar herramienta">✏️ Trazo libre</button>
+              <button id="eraser" class="btn" type="button">Borrador</button>
+              <button id="clear" class="btn" type="button">Limpiar</button>
+              <div class="draw-toolbar-divider" aria-hidden="true"></div>
+              <button id="undo" class="btn" type="button" title="Deshacer último trazo">↩️ Deshacer</button>
+              <button id="redo" class="btn" type="button" title="Rehacer">↪️ Rehacer</button>
+              <button id="insertImage" class="btn host-only" type="button" title="Insertar imagen">🖼️ Imagen</button>
             </div>
-
-            <!-- Loader -->
-            <div id="loader" class="absolute inset-0 bg-white bg-opacity-80 z-10 flex-col items-center justify-center hidden">
-                <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
-                <p class="text-lg font-medium text-gray-700">Cargando proyecto...</p>
-                <p id="loading-status" class="text-sm text-gray-500 mt-2"></p>
+          </div>
+        </div>
+        <div id="section-options" class="toolbar-section" data-section="options" role="tabpanel" aria-label="Otras opciones">
+          <button id="openImage" class="btn host-only btn-with-icon" type="button" title="Abrir una imagen y añadirla a la pizarra">
+            <span class="btn-icon" aria-hidden="true">🖼️</span>
+            <span>Abrir imagen</span>
+          </button>
+          <button id="openPdf" class="btn host-only btn-with-icon" type="button" title="Abrir un PDF y añadir sus páginas">
+            <span class="btn-icon" aria-hidden="true">📄</span>
+            <span>Abrir PDF</span>
+          </button>
+          <button id="savePdf" class="btn host-only btn-with-icon" title="Guardar como PDF">
+            <span class="btn-icon" aria-hidden="true">💾</span>
+            <span>Guardar PDF</span>
+          </button>
+        </div>
+        <input id="pdfInput" class="host-only" type="file" accept="application/pdf" style="display:none" />
+        <input id="imageInput" class="host-only" type="file" accept="image/*" style="display:none" />
+      </div>
+      <div class="header-pages">
+        <button id="pageToggle" class="btn edit-only" type="button" aria-expanded="false" aria-controls="pagePanel" title="Mostrar páginas">🗂️ Páginas</button>
+      </div>
+      <div class="header-status">
+        <div id="status" class="status-indicator" data-state="disconnected">
+          <button id="statusToggle" class="btn status-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Ver conexiones">
+            <span id="statusText">sin conexión</span>
+          </button>
+        </div>
+        <button id="viewToggle" class="btn view-toggle" type="button" aria-pressed="false" title="Maximizar área de dibujo">⛶ Maximizar</button>
+      </div>
+    </header>
+    <div id="toolSettingsPanel" class="tool-settings-popover edit-only" aria-live="polite" data-open="false" aria-hidden="true">
+      <div class="tool-settings-head">
+        <div class="tool-settings-heading">
+          <strong id="toolSettingsTitle">Trazo libre</strong>
+          <span id="toolSettingsHint">Ajusta las propiedades de la herramienta seleccionada</span>
+        </div>
+        <div class="tool-settings-actions">
+          <button id="toolSettingsReset" class="btn icon-btn" type="button" aria-label="Restaurar ajustes de herramientas" title="Restaurar ajustes de herramientas">↺</button>
+          <button id="toolSettingsPin" class="btn icon-btn" type="button" aria-pressed="false" aria-label="Fijar panel de herramientas">📌</button>
+          <button id="toolSettingsClose" class="btn icon-btn" type="button" aria-label="Cerrar ajustes">✕</button>
+        </div>
+      </div>
+      <div class="tool-settings-tabs" role="tablist" aria-label="Herramientas disponibles">
+        <button class="btn tool-btn" type="button" data-tool="pen" aria-selected="true" title="Trazo libre">✏️ Trazo</button>
+        <button class="btn tool-btn" type="button" data-tool="line" aria-selected="false" title="Dibujar línea recta">➖ Línea</button>
+        <button class="btn tool-btn" type="button" data-tool="rect" aria-selected="false" title="Dibujar rectángulo">⬛ Rectángulo</button>
+        <button class="btn tool-btn" type="button" data-tool="ellipse" aria-selected="false" title="Dibujar círculo o elipse">⚪ Círculo</button>
+        <button class="btn tool-btn" type="button" data-tool="highlight" aria-selected="false" title="Resaltador semitransparente">🟡 Resaltador</button>
+        <button class="btn tool-btn" type="button" data-tool="eraser" aria-selected="false" title="Borrador">🧽 Borrador</button>
+        <button class="btn tool-tab host-only" type="button" data-tab="page" aria-selected="false" title="Opciones de la página">📄 Página</button>
+      </div>
+      <div class="tool-settings-content">
+        <div class="tool-settings-grid" data-pane="tool">
+          <label class="tool-setting" data-field="stroke" for="color">
+            <span id="strokeLabel">Color del trazo</span>
+            <input id="color" type="color" value="#000000" />
+          </label>
+          <label class="tool-setting" data-field="size" for="size">
+            <span id="sizeLabel">Grosor (px)</span>
+            <input id="size" type="number" min="1" max="100" value="4" />
+          </label>
+          <label class="tool-setting" data-field="fill" id="fillSetting" for="shapeFill" hidden>
+            <span id="fillLabel">Relleno</span>
+            <div class="fill-input-group">
+              <input id="shapeFill" type="color" value="#ffffff" />
+              <label class="fill-transparent-toggle">
+                <input id="shapeFillTransparent" type="checkbox" />
+                <span>Sin relleno</span>
+              </label>
             </div>
-            
-            <!-- Iframe donde se mostrará el contenido -->
-            <iframe id="content-frame" title="Contenido del proyecto"></iframe>
-        </main>
-        
-        <!-- Aquí se insertará el pie de página si está configurado -->
-        <footer id="footer-content" class="bg-gray-800 text-white text-center p-4 text-sm shrink-0">
-        </footer>
+          </label>
+          <label class="tool-setting" data-field="eraser" for="eraserSize" hidden>
+            <span>Grosor borrador</span>
+            <input id="eraserSize" type="number" min="1" max="100" value="20" />
+          </label>
+        </div>
+        <div class="tool-settings-grid host-only" data-pane="page" hidden>
+          <label class="tool-setting" data-field="bgPreset" for="bgPreset">
+            <span>Tipo de fondo</span>
+            <select id="bgPreset"></select>
+          </label>
+          <label class="tool-setting" data-field="bg" for="bg">
+            <span>Color del fondo</span>
+            <input id="bg" type="color" value="#ffffff" />
+          </label>
+        </div>
+      </div>
     </div>
+    <div class="board" id="board">
+      <canvas id="canvas" style="height: calc(100vh - 56px);"></canvas>
+      <div id="eraserCursor" aria-hidden="true"></div>
+      <button id="boardRestoreBtn" class="board-restore-btn" type="button" aria-label="Restaurar vista" title="Restaurar vista" hidden></button>
+    </div>
+  </div>
+  <div id="pagePanel" class="page-panel edit-only" role="dialog" aria-modal="false" aria-label="Páginas de la pizarra" hidden>
+    <div class="page-panel-head">
+      <strong>Páginas</strong>
+      <button id="pageClose" class="btn" type="button" title="Ocultar panel">Cerrar</button>
+    </div>
+    <div class="page-tools">
+      <button id="pagePrev" class="btn" type="button" title="Página anterior">◀</button>
+      <button id="pageNext" class="btn" type="button" title="Página siguiente">▶</button>
+      <button id="pageAdd" class="btn" type="button" title="Añadir una página nueva">➕ Añadir</button>
+    </div>
+    <div id="pageThumbnails" class="page-thumbnails" role="listbox" aria-label="Miniaturas de páginas"></div>
+  </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- Elementos del DOM ---
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const welcomeContent = document.getElementById('welcome-content');
-        const loader = document.getElementById('loader');
-        const loadingStatus = document.getElementById('loading-status');
-        const contentFrame = document.getElementById('content-frame');
-        const scriptUrlInput = document.getElementById('script-url-input');
-        const saveButton = document.getElementById('save-script-url');
-        const footerContent = document.getElementById('footer-content');
-        const notificationArea = document.getElementById('notification-area');
-        const notificationText = document.getElementById('notification-text');
-        const notificationClose = document.getElementById('notification-close');
-        const errorDisplay = document.getElementById('error-display');
+  <div id="guestPanel" class="guest-panel" role="dialog" aria-modal="false" aria-labelledby="guestPanelTitle" hidden>
+    <div class="guest-panel-head">
+      <strong id="guestPanelTitle">Conexiones</strong>
+      <div class="guest-panel-actions">
+        <button id="guestPanelClose" class="btn icon-btn" type="button" aria-label="Cerrar panel de invitados">✕</button>
+      </div>
+    </div>
+    <div id="guestHostView" class="guest-panel-body" hidden>
+      <label class="guest-toggle-all">
+        <input id="guestAllowAll" type="checkbox" />
+        <span>Permitir que todos dibujen</span>
+      </label>
+      <div id="guestList" class="guest-list" role="group" aria-label="Invitados conectados"></div>
+      <p id="guestEmpty" class="guest-empty" hidden>Sin invitados conectados.</p>
+    </div>
+    <div id="guestSelfView" class="guest-panel-body" hidden>
+      <label class="guest-self-field">
+        <span>Mi nombre</span>
+        <input id="guestSelfName" type="text" maxlength="48" placeholder="Escribe tu nombre" />
+      </label>
+      <button id="guestRequestBtn" class="btn guest-request-btn" type="button">Pedir permiso para dibujar</button>
+      <p id="guestRequestHint" class="guest-request-hint">Actualmente estás en modo lectura.</p>
+    </div>
+  </div>
 
-        const SCRIPT_URL_STORAGE_KEY = 'googleWebAppUrl';
+  <!-- QR modal -->
+  <div class="qr-overlay" id="qrOverlay" role="dialog" aria-modal="true">
+    <div class="qr-card">
+      <div class="qr-head">
+        <strong>Conéctate a esta pizarra</strong>
+        <button id="qrClose" class="btn">Cerrar</button>
+      </div>
+      <div class="qr-box"><div id="qr"></div></div>
+      <div class="qr-meta">
+        <div>Abre esta URL y usa el código <span class="kbd" id="qrCodeText">—</span></div>
+        <button id="copyUrlBtn" class="btn copy-btn host-only" type="button">Copiar enlace</button>
+        <div id="qrUrl" class="qr-url host-only" title="Haz clic para copiar" role="button" tabindex="-1" aria-disabled="true">—</div>
+        <div id="copyUrlFeedback" class="copy-feedback hidden" aria-live="polite">Enlace copiado</div>
+      </div>
+    </div>
+  </div>
 
-        // --- Sistema de Notificaciones ---
-        let notificationTimeout;
-        const showNotification = (message, type = 'success', duration = 5000) => {
-            clearTimeout(notificationTimeout);
-            const content = document.getElementById('notification-content');
-            content.className = 'max-w-xl mx-auto rounded-lg shadow-lg p-4 flex items-center'; // Reset classes
-            if (type === 'error') {
-                content.classList.add('bg-red-100', 'text-red-800');
-            } else {
-                content.classList.add('bg-green-100', 'text-green-800');
-            }
-            notificationText.textContent = message;
-            notificationArea.style.transform = 'translateY(0)';
+  <script type="module" src="src/main.js"></script>
 
-            notificationTimeout = setTimeout(() => {
-                notificationArea.style.transform = 'translateY(-100%)';
-            }, duration);
-        };
-        notificationClose.addEventListener('click', () => {
-            clearTimeout(notificationTimeout);
-            notificationArea.style.transform = 'translateY(-100%)';
-        });
-
-        // --- Pie de página (configurable) ---
-        const footerInfo = {
-            enabled: false,
-            items: [
-                { text: 'Laboratorio de aplicaciones educativas', href: 'https://labia.tiddlyhost.com' },
-                { text: 'Aplicación hecha por Juan José de Haro', href: 'https://bilateria.org' },
-                { text: 'Licencia Creative Commons BY-SA', href: 'https://creativecommons.org/licenses/by-sa/4.0/' }
-            ]
-        };
-        
-        function renderFooter() {
-            if (footerInfo.enabled) {
-                const links = footerInfo.items.map(item => 
-                    `<a href="${item.href}" target="_blank" rel="noopener noreferrer" class="text-blue-300 hover:text-white mx-2">${item.text}</a>`
-                ).join(' - ');
-                footerContent.innerHTML = links;
-            } else {
-                footerContent.style.display = 'none';
-            }
-        }
-
-        // --- Función para mostrar mensaje de siguiente paso ---
-        const showNextStepMessage = () => {
-            const existingMessage = document.getElementById('next-step-info');
-            if(existingMessage) existingMessage.remove();
-
-            welcomeContent.insertAdjacentHTML('afterbegin', `
-                <div id="next-step-info" class="mb-6 p-4 bg-green-100 text-green-800 rounded-lg text-left">
-                    <p class="font-bold">¡Paso 1 completado!</p>
-                    <p>La URL de tu API está guardada. El último paso es añadir el ID de una carpeta de Drive a la URL de esta página (tras un #) y refrescar.</p>
-                </div>
-            `);
-        }
-        
-        // --- Lógica principal ---
-        const savedUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
-        if (savedUrl) {
-            scriptUrlInput.value = savedUrl;
-        }
-
-        saveButton.addEventListener('click', () => {
-            const url = scriptUrlInput.value.trim();
-            if (url && url.startsWith('https://script.google.com/macros/s/')) {
-                localStorage.setItem(SCRIPT_URL_STORAGE_KEY, url);
-                showNotification('URL guardada. Ahora, añade el ID de la carpeta a la URL y refresca.', 'success', 10000);
-                showNextStepMessage();
-            } else {
-                showNotification('Por favor, introduce una URL de Google Apps Script válida.', 'error');
-            }
-        });
-
-        async function init() {
-            renderFooter();
-            const scriptUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
-            const folderId = window.location.hash.substring(1);
-
-            if (scriptUrl && !folderId) {
-                welcomeScreen.style.display = 'flex';
-                showNextStepMessage();
-                return;
-            }
-
-            if (!scriptUrl || !folderId) {
-                welcomeScreen.style.display = 'flex';
-                return;
-            }
-            
-            welcomeScreen.style.display = 'none';
-            loader.style.display = 'flex';
-            await loadWebsite(scriptUrl, folderId);
-        }
-
-        async function fetchFile(scriptUrl, folderId, filename) {
-            const url = `${scriptUrl}?folderId=${folderId}&filename=${encodeURIComponent(filename)}`;
-            loadingStatus.textContent = `Pidiendo ${filename}...`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Respuesta de red no fue OK. Estado: ${response.status}`);
-                }
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(`Error de la API: ${data.error} (${data.details || 'Sin detalles'})`);
-                }
-                return data;
-            } catch (error) {
-                throw new Error(`Error de red al contactar la API. Revisa la URL del script y su configuración de despliegue. Detalles: ${error.message}`);
-            }
-        }
-        
-        async function loadWebsite(scriptUrl, folderId) {
-            try {
-                const indexFile = await fetchFile(scriptUrl, folderId, 'index.html');
-                
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(indexFile.content, 'text/html');
-
-                const resourcePromises = [];
-                const selectors = 'link[rel="stylesheet"], script[src], img[src]';
-                doc.querySelectorAll(selectors).forEach(el => {
-                    const attr = el.hasAttribute('href') ? 'href' : 'src';
-                    const path = el.getAttribute(attr);
-                    if (path && !path.startsWith('http') && !path.startsWith('data:')) {
-                         resourcePromises.push(
-                            fetchFile(scriptUrl, folderId, path).then(file => ({ el, file, attr }))
-                        );
-                    }
-                });
-
-                loadingStatus.textContent = `Descargando recursos adicionales...`;
-                const resources = await Promise.all(resourcePromises);
-
-                resources.forEach(res => {
-                    const { el, file, attr } = res;
-                    const dataUrl = `data:${file.mimeType};${file.encoding},${file.content}`;
-                    el.setAttribute(attr, dataUrl);
-                });
-
-                loadingStatus.textContent = 'Construyendo la página...';
-                const finalHtml = new XMLSerializer().serializeToString(doc);
-                contentFrame.srcdoc = finalHtml;
-                
-                loader.style.display = 'none';
-
-            } catch (error) {
-                loader.style.display = 'none';
-                welcomeScreen.style.display = 'flex';
-                errorDisplay.innerHTML = `<strong>Error al cargar el proyecto:</strong><br>${error.message}`;
-                errorDisplay.style.display = 'block';
-                console.error("Error detallado:", error);
-            }
-        }
-        
-        init();
-    });
-    </script>
 </body>
 </html>
