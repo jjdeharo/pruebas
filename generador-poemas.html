@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de poemas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .resultado {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+
+        .resultado.visible {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .poema {
+            color: #333;
+            font-size: 1.1em;
+            line-height: 1.8;
+            font-style: italic;
+            white-space: pre-line;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .error {
+            background: #fff0f0;
+            border-left-color: #e74c3c;
+            color: #c0392b;
+        }
+
+        .tema-label {
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generador de poemas</h1>
+        <p class="subtitle">Introduce una palabra o tema y la IA creará un poema para ti</p>
+
+        <div class="input-group">
+            <label for="tema">Palabra o tema:</label>
+            <input 
+                type="text" 
+                id="tema" 
+                placeholder="Ej: primavera, amor, océano, libertad..."
+                autocomplete="off"
+            >
+        </div>
+
+        <button id="generar" onclick="generarPoema()">Generar poema</button>
+
+        <div id="resultado" class="resultado">
+            <div class="tema-label" id="temaElegido"></div>
+            <div class="poema" id="poemaTexto"></div>
+        </div>
+    </div>
+
+    <script>
+        async function generarPoema() {
+            const temaInput = document.getElementById('tema');
+            const tema = temaInput.value.trim();
+            
+            if (!tema) {
+                alert('Por favor, introduce una palabra o tema');
+                return;
+            }
+
+            const boton = document.getElementById('generar');
+            const resultado = document.getElementById('resultado');
+            const poemaTexto = document.getElementById('poemaTexto');
+            const temaElegido = document.getElementById('temaElegido');
+
+            // Deshabilitar botón y mostrar loading
+            boton.disabled = true;
+            boton.textContent = 'Generando poema...';
+            resultado.classList.remove('visible', 'error');
+            poemaTexto.innerHTML = '<div class="loading">Creando tu poema...</div>';
+            resultado.classList.add('visible');
+
+            try {
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        model: "claude-sonnet-4-20250514",
+                        max_tokens: 1000,
+                        messages: [
+                            { 
+                                role: "user", 
+                                content: `Crea un poema breve de una única estrofa (4-6 versos) sobre el tema: "${tema}". Devuelve únicamente el poema, sin títulos, introducciones ni explicaciones adicionales.`
+                            }
+                        ],
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error en la generación del poema');
+                }
+
+                const data = await response.json();
+                const poema = data.content.find(item => item.type === "text")?.text || "No se pudo generar el poema";
+
+                // Mostrar resultado
+                temaElegido.textContent = `Tema: ${tema}`;
+                poemaTexto.textContent = poema.trim();
+                resultado.classList.remove('error');
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultado.classList.add('error');
+                temaElegido.textContent = 'Error';
+                poemaTexto.textContent = 'Lo siento, no se pudo generar el poema. Por favor, inténtalo de nuevo.';
+            } finally {
+                boton.disabled = false;
+                boton.textContent = 'Generar poema';
+            }
+        }
+
+        // Permitir generar con Enter
+        document.getElementById('tema').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generarPoema();
+            }
+        });
+    </script>
+</body>
+</html>
